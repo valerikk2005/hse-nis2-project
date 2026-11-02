@@ -1,6 +1,7 @@
 import subprocess
 import time
 import matplotlib
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import sys
@@ -13,6 +14,11 @@ READ_USER_TIMELINE_REST = 'http://localhost:8080/wrk2-api/user-timeline/read'
 WRK = '../wrk2/wrk -D exp -t 12 -c 100 -T 10s'
 
 
+def parse_time(s):
+    if s[-2:] == 'ms':
+        return float(s.replace('ms', '').replace(',', ''))
+    return float(s.replace('s', '').replace(',', '')) * 1000
+
 def parse_wrk2_output(text):
     result = {}
     for line in text.splitlines():
@@ -23,8 +29,8 @@ def parse_wrk2_output(text):
 
         if parts[0] == 'Latency':
             if len(parts) >= 4:
-                avg_ms = parts[1].replace('ms', '').replace(',', '')
-                p99_ms = parts[3].replace('ms', '').replace(',', '')
+                avg_ms = parse_time(parts[1])
+                p99_ms = parse_time(parts[3])
                 result['avg_latency_ms'] = float(avg_ms)
                 result['p99_latency_ms'] = float(p99_ms)
 
@@ -32,9 +38,9 @@ def parse_wrk2_output(text):
 
 
 def plot_results(parsed, out_path):
-    rps      = [p['rps'] for p in parsed]
-    avg_lat  = [p['avg_latency_ms'] for p in parsed]
-    p99_lat  = [p['p99_latency_ms'] for p in parsed]
+    rps = [p['rps'] for p in parsed]
+    avg_lat = [p['avg_latency_ms'] for p in parsed]
+    p99_lat = [p['p99_latency_ms'] for p in parsed]
 
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.plot(rps, avg_lat, marker='o', label='avg latency (ms)', color='tab:blue')
@@ -53,11 +59,20 @@ def plot_results(parsed, out_path):
 
 
 def prepare(dur, rps):
-	subprocess.run(f'{WRK} -d {dur}s -R {rps} -s {READ_USER_TIMELINE_LUA} {READ_USER_TIMELINE_REST} > /dev/null', shell=True, text=True)
+    subprocess.run(
+        f'{WRK} -d {dur}s -R {rps} -s {READ_USER_TIMELINE_LUA} {READ_USER_TIMELINE_REST} > /dev/null',
+        shell=True, text=True,
+    )
+
 
 def run_queries(dur, rps):
-	result = subprocess.run(f'{WRK} -d {dur}s -R {rps} -s {READ_USER_TIMELINE_LUA} {READ_USER_TIMELINE_REST} | grep -A 6 -- \'Test Results\'', shell=True, text=True, capture_output=True)
-	return parse_wrk2_output(result.stdout)
+    result = subprocess.run(
+        f"{WRK} -d {dur}s -R {rps} -s {READ_USER_TIMELINE_LUA} {READ_USER_TIMELINE_REST} "
+        f"| grep -A 6 -- 'Test Results'",
+        shell=True, text=True, capture_output=True,
+    )
+    print(result.stdout)
+    return parse_wrk2_output(result.stdout)
 
 
 prepare(60, 500)
@@ -65,12 +80,12 @@ prepare(60, 500)
 parsed = []
 
 for i in range(10):
-	rps = int(3000 * 1.1 ** i)
-	print(f'RPS {rps}')
-	cur = run_queries(60, rps)
-	cur['rps'] = rps
-	parsed.append(cur)
-	time.sleep(30)
+    rps = int(4000 * 1.1 ** i)
+    print(f'RPS {rps}')
+    cur = run_queries(60, rps)
+    cur['rps'] = rps
+    parsed.append(cur)
+    time.sleep(30)
 
 
 plot_results(parsed, '../../examples/minimal/latency_rps.png')
