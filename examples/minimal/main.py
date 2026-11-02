@@ -11,7 +11,7 @@ COMPOSE_POST_REST = 'http://localhost:8080/wrk2-api/post/compose'
 READ_USER_TIMELINE_LUA = './wrk2/scripts/social-network/read-user-timeline.lua'
 READ_USER_TIMELINE_REST = 'http://localhost:8080/wrk2-api/user-timeline/read'
 
-WRK = '../wrk2/wrk -D exp -t 12 -c 100 -T 10s'
+WRK = '../wrk2/wrk -D exp -t 12 -c 100 -T 30s'
 
 
 def parse_time(s):
@@ -80,7 +80,7 @@ prepare(60, 500)
 parsed = []
 
 for i in range(10):
-    rps = int(4000 * 1.1 ** i)
+    rps = int(2650 * 1.1 ** i)
     print(f'RPS {rps}')
     cur = run_queries(60, rps)
     cur['rps'] = rps
